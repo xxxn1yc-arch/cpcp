@@ -63,19 +63,24 @@ function createGrid(gridElement, imageArray) {
 createGrid(gongGrid, gongImages);
 createGrid(suGrid, suImages);
 
-// 크롭 취소 및 완료 처리
+// 크롭 취소 처리
 cropCancelBtn.addEventListener('click', () => {
     modal.style.display = 'none';
     if (cropper) cropper.destroy();
 });
 
+// 크롭 완료 처리
 cropConfirmBtn.addEventListener('click', () => {
     if (!cropper) return;
-    // 💡 원본 이미지가 크기 때문에 크롭 추출물도 800px 고화질로 키워서 선명도를 유지합니다.
-    const croppedCanvas = cropper.getCroppedCanvas({ width: 800, height: 800 });
+    
+    // 💡 [해결 포인트 1] width, height 제한을 완전히 없애고 사용자가 크롭한 원본 화질 크기 그대로 추출합니다.
+    const croppedCanvas = cropper.getCroppedCanvas({
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high'
+    });
     
     const img = new Image();
-    img.src = croppedCanvas.toDataURL();
+    img.src = croppedCanvas.toDataURL('image/png');
     img.onload = () => {
         currentTarget.array[currentTarget.index] = img;
         currentTarget.cellElement.style.backgroundImage = `url(${img.src})`;
@@ -91,5 +96,48 @@ downloadBtn.addEventListener('click', () => {
     templateImg.src = 'template.png'; 
 
     templateImg.onload = () => {
-        canvas.width = templateImg.width;
-        canvas.height
+        // 💡 [해결 포인트 2] 캔버스 해상도가 모바일 디바이스 픽셀 밀도에 의해 왜곡되지 않도록 원본 크기로 강제 고정합니다.
+        canvas.width = 3060;
+        canvas.height = 2550;
+        
+        // 캔버스를 깨끗하게 비우고 템플릿 그리기
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(templateImg, 0, 0, 3060, 2550);
+
+        // 🎯 [3060x2550 규격 완벽 실측 매핑 수치]
+        const cellWidth = 416;   // 흰색 칸 하나 가로 크기
+        const cellHeight = 416;  // 흰색 칸 하나 세로 크기
+        
+        const gapX = 21;          // 칸 사이 검은 세로선 두께
+        const gapY = 21;          // 칸 사이 검은 가로선 두께
+
+        const gongStartX = 117;   // '공' 그리드 첫 번째 칸 시작 X 좌표
+        const suStartX = 1638;    // '수' 그리드 첫 번째 칸 시작 X 좌표
+        const gridY = 404;        // 상단 검은 바 타이틀 아래 시작 Y 좌표
+
+        // '공' 이미지들 그리기
+        drawCells(gongImages, gongStartX, gridY, cellWidth, cellHeight, gapX, gapY);
+        // '수' 이미지들 그리기
+        drawCells(suImages, suStartX, gridY, cellWidth, cellHeight, gapX, gapY);
+
+        // 최종 다운로드 처리
+        const link = document.createElement('a');
+        link.download = 'gong_su_analysis.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+});
+
+function drawCells(images, startX, startY, w, h, gapX, gapY) {
+    for (let i = 0; i < 12; i++) {
+        if (images[i]) {
+            const col = i % 3;
+            const row = Math.floor(i / 3);
+            const x = startX + col * (w + gapX);
+            const y = startY + row * (h + gapY);
+            
+            // 저장 시 각 칸에 이미지가 꽉 차고 찌그러지지 않게 강제로 지정된 흰 칸 크기(w, h)로 맞춰 그립니다.
+            ctx.drawImage(images[i], x, y, w, h);
+        }
+    }
+}
