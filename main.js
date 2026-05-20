@@ -15,7 +15,7 @@ let currentTarget = { array: null, index: null, cellElement: null };
 const gongImages = Array(12).fill(null);
 const suImages = Array(12).fill(null);
 
-// 1. 그리드 셀 생성 및 클릭 시 풀스크린 크롭 연동
+// 1. 그리드 셀 생성 및 클릭 시 크롭 연동 (모바일 터치 및 클릭 차단 버그 해결)
 function createGrid(gridElement, imageArray) {
     for (let i = 0; i < 12; i++) {
         const cell = document.createElement('div');
@@ -28,7 +28,7 @@ function createGrid(gridElement, imageArray) {
             fileInput.accept = 'image/*';
             
             fileInput.onchange = (e) => {
-                const file = e.target.value ? e.target.files[0] : null;
+                const file = e.target.files ? e.target.files[0] : null;
                 if (!file) return;
 
                 const reader = new FileReader();
@@ -37,29 +37,36 @@ function createGrid(gridElement, imageArray) {
                     currentTarget.index = i;
                     currentTarget.cellElement = cell;
 
-                    modal.style.display = 'flex';
-                    cropperImage.src = event.target.result;
-
+                    // 💡 [해결 포인트] 크롭 라이브러리가 꼬이지 않도록 기존 인스턴스를 완전히 파괴 후 초기화
                     if (cropper) {
                         cropper.destroy();
                         cropper = null;
                     }
 
-                    cropper = new Cropper(cropperImage, {
-                        aspectRatio: 1, 
-                        viewMode: 1,
-                        dragMode: 'move',
-                        background: false,
-                        autoCropArea: 0.9,
-                        cropBoxMovable: false,
-                        cropBoxResizable: false,
-                        toggleDragModeOnDblclick: false,
-                        responsive: true,
-                        restore: false
-                    });
+                    cropperImage.src = event.target.result;
+                    modal.style.display = 'flex';
+
+                    // 이미지 로드가 완전히 끝난 시점에 Cropper를 실행해야 모바일에서 튕기지 않습니다.
+                    cropperImage.onload = () => {
+                        if (cropper) return; // 중복 생성 방지
+                        cropper = new Cropper(cropperImage, {
+                            aspectRatio: 1, 
+                            viewMode: 1,
+                            dragMode: 'move',
+                            background: false,
+                            autoCropArea: 0.9,
+                            cropBoxMovable: false,
+                            cropBoxResizable: false,
+                            toggleDragModeOnDblclick: false,
+                            responsive: true,
+                            restore: false
+                        });
+                    };
                 };
                 reader.readAsDataURL(file);
             };
+            
+            // 모바일 사파리 보안 우회를 위해 이벤트를 즉시 실행합니다.
             fileInput.click();
         });
         gridElement.appendChild(cell);
@@ -82,7 +89,7 @@ cropCancelBtn.addEventListener('click', () => {
 cropConfirmBtn.addEventListener('click', () => {
     if (!cropper) return;
     
-    // 현재 1020 해상도에 맞춰 300px 정사각형으로 최적화하여 추출합니다.
+    // 1020 해상도에 최적화된 고화질 크기(300px)로 추출
     const croppedCanvas = cropper.getCroppedCanvas({
         width: 300,
         height: 300,
@@ -111,30 +118,26 @@ downloadBtn.addEventListener('click', () => {
     templateImg.src = 'template.png'; 
 
     templateImg.onload = () => {
-        // 💡 캔버스 크기를 리사이징된 1020 x 850 규격으로 강제 고정
         canvas.width = 1020;
         canvas.height = 850;
         
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(templateImg, 0, 0, 1020, 850);
 
-        // 🎯 [1020x850 해상도 맞춤 실측 수치]
-        const cellWidth = 139;   // 흰색 칸 하나 가로 크기
-        const cellHeight = 139;  // 흰색 칸 하나 세로 크기
+        // 🎯 1020x850 해상도 실측 수치
+        const cellWidth = 139;   
+        const cellHeight = 139;  
         
-        const gapX = 7;          // 칸 사이 검은 세로선 두께
-        const gapY = 7;          // 칸 사이 검은 가로선 두께
+        const gapX = 7;          
+        const gapY = 7;          
 
-        const gongStartX = 39;   // '공' 그리드 첫 번째 칸 시작 X 좌표
-        const suStartX = 546;    // '수' 그리드 첫 번째 칸 시작 X 좌표
-        const gridY = 135;       // 상단 타이틀 아래 그리드 시작 Y 좌표
+        const gongStartX = 39;   
+        const suStartX = 546;    
+        const gridY = 135;       
 
-        // '공' 이미지들 그리기
         drawCells(gongImages, gongStartX, gridY, cellWidth, cellHeight, gapX, gapY);
-        // '수' 이미지들 그리기
         drawCells(suImages, suStartX, gridY, cellWidth, cellHeight, gapX, gapY);
 
-        // 최종 다운로드 처리
         const link = document.createElement('a');
         link.download = 'gong_su_analysis.png';
         link.href = canvas.toDataURL('image/png');
