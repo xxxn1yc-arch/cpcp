@@ -15,7 +15,7 @@ let currentTarget = { array: null, index: null, cellElement: null };
 const gongImages = Array(12).fill(null);
 const suImages = Array(12).fill(null);
 
-// 1. 그리드 셀 생성 및 클릭 시 크롭 연동 (모바일 터치 및 클릭 차단 버그 해결)
+// 1. 그리드 셀 생성 및 클릭 시 크롭 연동
 function createGrid(gridElement, imageArray) {
     for (let i = 0; i < 12; i++) {
         const cell = document.createElement('div');
@@ -23,6 +23,7 @@ function createGrid(gridElement, imageArray) {
         cell.dataset.index = i;
 
         cell.addEventListener('click', () => {
+            // 💡 [핵심 해결 포인트] 터치하자마자 인풋을 만들고 '즉시' 클릭을 때려야 아이폰 보안에 안 걸립니다.
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
             fileInput.accept = 'image/*';
@@ -37,7 +38,6 @@ function createGrid(gridElement, imageArray) {
                     currentTarget.index = i;
                     currentTarget.cellElement = cell;
 
-                    // 💡 [해결 포인트] 크롭 라이브러리가 꼬이지 않도록 기존 인스턴스를 완전히 파괴 후 초기화
                     if (cropper) {
                         cropper.destroy();
                         cropper = null;
@@ -46,9 +46,9 @@ function createGrid(gridElement, imageArray) {
                     cropperImage.src = event.target.result;
                     modal.style.display = 'flex';
 
-                    // 이미지 로드가 완전히 끝난 시점에 Cropper를 실행해야 모바일에서 튕기지 않습니다.
+                    // 이미지 로드가 완전히 끝난 시점에 Cropper 초기화
                     cropperImage.onload = () => {
-                        if (cropper) return; // 중복 생성 방지
+                        if (cropper) return; 
                         cropper = new Cropper(cropperImage, {
                             aspectRatio: 1, 
                             viewMode: 1,
@@ -66,7 +66,7 @@ function createGrid(gridElement, imageArray) {
                 reader.readAsDataURL(file);
             };
             
-            // 모바일 사파리 보안 우회를 위해 이벤트를 즉시 실행합니다.
+            // 다른 비동기 코드 없이 터치 이벤트 핸들러 안에서 곧바로 클릭 실행!
             fileInput.click();
         });
         gridElement.appendChild(cell);
