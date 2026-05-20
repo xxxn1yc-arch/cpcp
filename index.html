@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>공수 외모 고찰 메이커</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>공수 외모 고찰 메이커</h1>
+    <p>각 칸을 클릭하여 사진을 업로드하세요.</p>
+
+    <div class="container">
+        <div class="grid-section">
+            <h2>공</h2>
+            <div class="grid" id="gong-grid"></div>
+        </div>
+
+        <div class="grid-section">
+            <h2>수</h2>
+            <div class="grid" id="su-grid"></div>
+        </div>
+    </div>
+
+    <div class="btn-container">
+        <button id="download-btn">하나의 이미지로 저장하기</button>
+    </div>
+
+    <canvas id="merge-canvas" style="display: none;"></canvas>
+
+    <script src="main.js"></script>
+</body>
+</html>
